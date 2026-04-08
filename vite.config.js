@@ -8,4 +8,5 @@ export default defineConfig({
     port: 5174,
     strictPort: true,
   },
+  base: '/Ecommerce-Auth/',
 })

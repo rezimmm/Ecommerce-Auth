@@ -70,6 +70,8 @@ const getStrength = (pwd) => {
   return { score: s, label: labels[s], cls: map[s] }
 }
 
+const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || 'http://localhost:5173';
+
 export default function Login() {
   const navigate = useNavigate()
   const [form, setForm] = useState({ email: '', password: '' })
@@ -96,8 +98,31 @@ export default function Login() {
 
   const { signIn, signInWithGoogle } = useAuth()
 
-  // In Auth/src/pages/Login.jsx
-  // Replace the handleSubmit function:
+  // Google Sign-In via GSI credential popup
+  const handleGoogleLogin = () => {
+    if (!window.google) {
+      setAlert({ type: 'error', msg: 'Google Sign-In is not available. Please try again.' })
+      return
+    }
+    setAlert(null)
+    setLoading(true)
+    window.google.accounts.id.initialize({
+      client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+      callback: async (response) => {
+        try {
+          await signInWithGoogle(response.credential)
+          setAlert({ type: 'success', msg: 'Google Sign-In successful! Redirecting...' })
+          setTimeout(() => { window.location.href = FRONTEND_URL }, 1200)
+        } catch (err) {
+          setAlert({ type: 'error', msg: err.response?.data?.message || 'Google Sign-In failed. Please try again.' })
+        } finally {
+          setLoading(false)
+        }
+      },
+      ux_mode: 'popup',
+    })
+    window.google.accounts.id.prompt()
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -112,22 +137,17 @@ export default function Login() {
         password: form.password
       })
 
-      // Save token so Frontend can read it
       localStorage.setItem('luxe_access_token', data.accessToken)
       localStorage.setItem('luxe_user', JSON.stringify(data.user))
 
       setAlert({ type: 'success', msg: 'Welcome back! Redirecting...' })
 
-      // ← Redirect to Frontend shop
       setTimeout(() => {
-        window.location.href = 'http://localhost:5173'
+        window.location.href = FRONTEND_URL
       }, 1200)
 
     } catch (err) {
-      console.error("Login catch full error:", err);
-      if (!err.response) {
-        console.error("NETWORK ERROR — check if backend is running on 5000 and CORS is relaxed.");
-      }
+      console.error('Login error:', err)
       setAlert({
         type: 'error',
         msg: err.response?.data?.message || 'Network error or backend down.'
@@ -155,10 +175,10 @@ export default function Login() {
 
         {/* Social Buttons */}
         <div className="social-buttons" style={{ marginBottom: 20 }}>
-          <button className="btn-social" type="button" id="btn-google-login">
+          <button className="btn-social" type="button" id="btn-google-login" onClick={handleGoogleLogin} disabled={loading}>
             <IconGoogle /> Continue with Google
           </button>
-          <button className="btn-social" type="button" id="btn-apple-login">
+          <button className="btn-social" type="button" id="btn-apple-login" disabled>
             <IconApple /> Continue with Apple
           </button>
         </div>
